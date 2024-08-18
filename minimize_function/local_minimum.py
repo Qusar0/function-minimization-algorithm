@@ -60,9 +60,9 @@ def scipy_implementation(
         nums = first, second, third
 
 
-def update_values(k, function_to_minimize, args, values, delta, iterationFunction):
-    first, second, third = args
-    S1, S2, S3 = values
+def update_values(k, function_to_minimize, func_args, func_values, delta, iterationFunction):
+    first, second, third = func_args
+    S1, S2, S3 = func_values
 
     if k == 1:
         third = second
@@ -85,11 +85,11 @@ def update_values(k, function_to_minimize, args, values, delta, iterationFunctio
 
         if y1 < S2:
             return update_values(
-                1, function_to_minimize, args, values, delta, iterationFunction
+                1, function_to_minimize, func_args, func_values, delta, iterationFunction
             )
         elif y2 < S2:
             return update_values(
-                3, function_to_minimize, args, values, delta, iterationFunction
+                3, function_to_minimize, func_args, func_values, delta, iterationFunction
             )
         else:
             first, third = second - delta, second + delta
@@ -114,6 +114,7 @@ def bisection_implementation(
     iterationFunction += 3
     values = S1, S2, S3
     S_k, k = 0, 0
+
     while delta > tolerance:
         S_k = min(values)
         k = values.index(S_k) + 1
@@ -135,11 +136,7 @@ def bisection_implementation(
     argument = round(argument, decimal_places)
     function_value = round(function_value, decimal_places)
 
-    return LocalMinimum(
-        argument=argument, function_value=function_value
-    ), ScoreIteration(
-        iterationNumber=iterationNumber, iterationFunction=iterationFunction
-    )
+    return LocalMinimum(argument=argument, function_value=function_value), ScoreIteration(iterationNumber=iterationNumber, iterationFunction=iterationFunction)
 
 def main():
 
