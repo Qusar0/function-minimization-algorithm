@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from typing import Callable
+from scipy import optimize
 import math
-
-
+import scipy
+import numpy
 @dataclass
 class Interval:
     left: float
@@ -29,38 +30,35 @@ def scipy_implementation(
     interval: Interval,
     tolerance: float = 10**-8,
 ) -> LocalMinimum:
-    first, third = interval.left, interval.right
-    delta = abs((first + third) / 2)
-    second = first + delta
+    result = optimize.minimize_scalar(
+        function_to_minimize,
+        bounds=(interval.left, interval.right),
+        method="bounded",
+        options={"xatol": tolerance},
+    )
 
-    nums = first, second, third
-    S1, S2, S3 = list(map(function_to_minimize, nums))
-    values = S1, S2, S3
-    while True:
-        S_k = min(values)
-        k = values.index(S_k) + 1
+    argument = result.x
+    function_value = result.fun
 
-        if delta < tolerance:
-            argument = nums[values.index(S_k)]
-            function_value = S_k
+    decimal_places = -int(math.log10(tolerance)) - 1
 
-            decimal_places = -int(math.log10(tolerance)) - 1
+    argument = round(argument, decimal_places)
+    function_value = round(function_value, decimal_places)
 
-            argument = round(argument, decimal_places)
-            function_value = round(function_value, decimal_places)
+    iterationNumber = result.nit
+    iterationFunction = result.nfev
 
-            return LocalMinimum(argument=argument, function_value=function_value)
+    local_minimum = LocalMinimum(argument=argument, function_value=function_value)
+    score_iteration = ScoreIteration(
+        iterationNumber=iterationNumber, iterationFunction=iterationFunction
+    )
 
-        delta /= 2
-
-        first, second, third, S1, S2, S3 = update_values(
-            k, function_to_minimize, nums, values, delta
-        )
-        values = S1, S2, S3
-        nums = first, second, third
+    return local_minimum  # , score_iteration
 
 
-def update_values(k, function_to_minimize, func_args, func_values, delta, iterationFunction):
+def update_values(
+    k, function_to_minimize, func_args, func_values, delta, iterationFunction
+):
     first, second, third = func_args
     S1, S2, S3 = func_values
 
@@ -85,11 +83,21 @@ def update_values(k, function_to_minimize, func_args, func_values, delta, iterat
 
         if y1 < S2:
             return update_values(
-                1, function_to_minimize, func_args, func_values, delta, iterationFunction
+                1,
+                function_to_minimize,
+                func_args,
+                func_values,
+                delta,
+                iterationFunction,
             )
         elif y2 < S2:
             return update_values(
-                3, function_to_minimize, func_args, func_values, delta, iterationFunction
+                3,
+                function_to_minimize,
+                func_args,
+                func_values,
+                delta,
+                iterationFunction,
             )
         else:
             first, third = second - delta, second + delta
@@ -106,20 +114,35 @@ def bisection_implementation(
     iterationNumber, iterationFunction = 0, 0
 
     first, third = interval.left, interval.right
-    delta = abs((first + third) / 2)
+    delta = (third - first) / 2
     second = first + delta
 
     nums = first, second, third
     S1, S2, S3 = list(map(function_to_minimize, nums))
     iterationFunction += 3
     values = S1, S2, S3
-    S_k, k = 0, 0
 
-    while delta > tolerance:
+    while True:
         S_k = min(values)
         k = values.index(S_k) + 1
 
         delta /= 2
+
+        if delta < tolerance:
+            argument = nums[values.index(S_k)]
+            function_value = S_k
+
+            decimal_places = -int(math.log10(tolerance)) - 1
+            argument = round(argument, decimal_places)
+            function_value = round(function_value, decimal_places)
+
+            local_minimum = LocalMinimum(
+                argument=argument, function_value=function_value
+            )
+            score_iteration = ScoreIteration(
+                iterationNumber=iterationNumber, iterationFunction=iterationFunction
+            )
+            return local_minimum  # , score_iteration
 
         first, second, third, S1, S2, S3, iterationFunction = update_values(
             k, function_to_minimize, nums, values, delta, iterationFunction
@@ -129,25 +152,31 @@ def bisection_implementation(
 
         iterationNumber += 1
 
-    argument = nums[values.index(S_k)]
-    function_value = S_k
-
-    decimal_places = -int(math.log10(tolerance)) - 1
-    argument = round(argument, decimal_places)
-    function_value = round(function_value, decimal_places)
-
-    return LocalMinimum(argument=argument, function_value=function_value), ScoreIteration(iterationNumber=iterationNumber, iterationFunction=iterationFunction)
 
 def main():
 
     print(
+        "scipy_implementation:\n",
+        scipy_implementation(
+            function_to_minimize=lambda x: math.sin(x)
+            + math.cos(math.sqrt(2 * x))
+            + math.sin(math.sqrt(3 * x)),
+            interval=Interval(left=12, right=50),
+        ),
+    )
+
+    print(
+        "bisection_implementation:\n",
         bisection_implementation(
             function_to_minimize=lambda x: math.sin(x)
             + math.cos(math.sqrt(2 * x))
             + math.sin(math.sqrt(3 * x)),
             interval=Interval(left=12, right=50),
-        )
+        ),
     )
+
+    print(scipy.__version__)
+    print(numpy.__version__)
 
 
 if __name__ == "__main__":

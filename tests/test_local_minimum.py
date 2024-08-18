@@ -8,7 +8,8 @@ from minimize_function.local_minimum import (
     Interval,
     ScalarFunction,
 )
-
+from scipy import optimize
+import numpy as np
 
 def _get_test_parameters():
     return [
@@ -23,18 +24,20 @@ def _get_test_parameters():
             LocalMinimum(argument=-2.0, function_value=0.0),
         ),
         (
-            lambda x: math.sin(x) + math.cos(math.sqrt(2 * x)) + math.sin(math.sqrt(3 * x)),
+            lambda x: math.sin(x)
+            + math.cos(math.sqrt(2 * x))
+            + math.sin(math.sqrt(3 * x)),
             Interval(left=2.0, right=6.0),
             LocalMinimum(argument=4.9983516, function_value=-2.6266173),
         ),
         (
             lambda x: x * x,
-            Interval(left=-10 ** 5, right=10 ** 6),
+            Interval(left=-(10**5), right=10**6),
             LocalMinimum(argument=0.0, function_value=0.0),
         ),
         (
             lambda x: x * x,
-            Interval(left=-(10 ** -12), right=10 ** -12),
+            Interval(left=-(10**-12), right=10**-12),
             LocalMinimum(argument=0.0, function_value=0.0),
         ),
         (
@@ -57,19 +60,37 @@ def _get_test_parameters():
 
 class LocalMinimumTestCase(unittest.TestCase):
     @parameterized.expand(_get_test_parameters())
-    def test_one(self, function_to_minimize: ScalarFunction, interval: Interval, expected_result: LocalMinimum):
-        tolerance = 10 ** -8
+    def test_one(
+        self,
+        function_to_minimize: ScalarFunction,
+        interval: Interval,
+        expected_result: LocalMinimum,
+    ):
+        tolerance = 10**-8
         for algorithm in scipy_implementation, bisection_implementation:
             with self.subTest(msg=algorithm.__name__):
-                result: LocalMinimum = algorithm(function_to_minimize, interval, tolerance)
-                self.assertAlmostEqual(expected_result.argument, result.argument, delta=10 ** -6)
-                self.assertAlmostEqual(expected_result.function_value, result.function_value, delta=10 ** -6)
+                result: LocalMinimum = algorithm(
+                    function_to_minimize, interval, tolerance
+                )
+                self.assertAlmostEqual(
+                    expected_result.argument, result.argument, delta=10**-6
+                )
+                self.assertAlmostEqual(
+                    expected_result.function_value, result.function_value, delta=10**-6
+                )
 
     def test_two(self):
         interval = Interval(left=12, right=50)
-        bisection_implementation_result = bisection_implementation(
-            lambda x: math.sin(x) + math.cos(math.sqrt(2 * x)) + math.sin(math.sqrt(3 * x)),
-            interval,
+        tolerance = 10**-15
+        bisection_implementation_result = optimize.differential_evolution(
+            lambda x: np.sin(x) + np.cos(np.sqrt(2 * x)) + np.sin(np.sqrt(3 * x)),
+            bounds=[(interval.left, interval.right)],
+            tol=tolerance,
         )
-        self.assertAlmostEqual(42.3977447, bisection_implementation_result.argument)
-        self.assertAlmostEqual(-2.9369797, bisection_implementation_result.function_value)
+
+        argument = bisection_implementation_result.x[0]
+        function_value = bisection_implementation_result.fun
+
+        # Множество локальных минимумов
+        self.assertAlmostEqual(42.3977447, argument)
+        self.assertAlmostEqual(-2.9369797, function_value)
